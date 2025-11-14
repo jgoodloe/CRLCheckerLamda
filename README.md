@@ -79,19 +79,31 @@ SAMPLE_EVENT="{\"certificate_pem\": \"-----BEGIN ...\"}" python lambda_function.
    - Create an IAM role with `AWSLambdaBasicExecutionRole` plus `s3:GetObject` (or Secrets Manager/Twilio permissions as needed).
 
 3. **Deploy / update the function**
-   - Upload the bundle: `aws s3 cp certificate-checker.zip s3://cert-checker-artifacts-.../`
-   - Create or update the Lambda:
+   - Upload bundle: `aws s3 cp certificate-checker.zip s3://cert-checker-artifacts-.../`
+   - Initial creation via CLI:
      ```
      aws lambda create-function \
        --function-name CertificateChecker \
        --runtime python3.12 \
-       --role <role-arn> \
        --handler lambda_function.lambda_handler \
-       --timeout 30 --memory-size 512 \
-       --environment Variables={CONFIG_PATH=/opt/config.yaml} \
-       --code S3Bucket=cert-checker-artifacts-...,S3Key=certificate-checker.zip
+       --role <lambda-execution-role-arn> \
+       --code S3Bucket=cert-checker-artifacts-...,S3Key=certificate-checker.zip \
+       --timeout 60 \
+       --memory-size 512 \
+       --environment Variables={CONFIG_PATH=/opt/config.yaml}
      ```
-     (Use `aws lambda update-function-code --zip-file fileb://certificate-checker.zip` for subsequent deployments.)
+   - Or update existing code:
+     `aws lambda update-function-code --function-name CertificateChecker --zip-file fileb://certificate-checker.zip`
+   - If dependencies exceed the 50 MB zipped limit, move heavy libraries (e.g., `cryptography`) into a Lambda layer:
+     ```
+     aws lambda publish-layer-version \
+       --layer-name certificate-checker-libs \
+       --zip-file fileb://layer.zip \
+       --compatible-runtimes python3.12
+     aws lambda update-function-configuration \
+       --function-name CertificateChecker \
+       --layers arn:aws:lambda:<region>:<account>:layer:certificate-checker-libs:<version>
+     ```
 
 4. **Configure defaults & secrets**
    - Set environment variables such as `CERTIFICATE_PATH`, `HTTP_PUSH_URL`, `TEAMS_WEBHOOK_URL`, or `TWILIO_*`.
