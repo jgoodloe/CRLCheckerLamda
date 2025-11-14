@@ -104,6 +104,14 @@ SAMPLE_EVENT="{\"certificate_pem\": \"-----BEGIN ...\"}" python lambda_function.
        --function-name CertificateChecker \
        --layers arn:aws:lambda:<region>:<account>:layer:certificate-checker-libs:<version>
      ```
+   - **Console (GUI) flow**:
+     1. Open AWS console → Lambda → “Create function”.
+     2. Choose “Author from scratch”, name the function, runtime `Python 3.12`, and select/ create the execution role with CloudWatch Logs + S3/Secrets permissions.
+     3. After creation, open the “Code” tab → “Upload from” → “.zip file” → select `certificate-checker.zip`.
+     4. Under “Runtime settings”, set Handler to `lambda_function.lambda_handler`.
+     5. In “Configuration → Environment variables”, add `CONFIG_PATH`, `CERTIFICATE_PATH`, notification URLs, etc.
+     6. (Optional) Attach a Lambda layer under “Configuration → Layers” if you published one for dependencies.
+     7. Save changes, then use the “Test” button with a sample payload or wire up EventBridge/SNS triggers.
 
 4. **Configure defaults & secrets**
    - Set environment variables such as `CERTIFICATE_PATH`, `HTTP_PUSH_URL`, `TEAMS_WEBHOOK_URL`, or `TWILIO_*`.
