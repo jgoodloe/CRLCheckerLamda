@@ -62,20 +62,56 @@ pip install -r requirements.txt
 SAMPLE_EVENT="{\"certificate_pem\": \"-----BEGIN ...\"}" python lambda_function.py
 ```
 
-### Deployment
+### AWS Deployment & Testing
 
-1. Package the application (example using zip):
+1. **Package the Lambda bundle**
+   ```
+   python -m venv .venv && .\.venv\Scripts\activate
+   pip install -r requirements.txt -t build/
+   xcopy src build\src /E /I
+   copy lambda_function.py build\
+   (cd build && powershell Compress-Archive * ..\certificate-checker.zip)
+   ```
 
-```
-pip install -r requirements.txt -t build/
-cp -r src build/
-cp lambda_function.py build/
-(cd build && zip -r ../certificate-checker.zip .)
-```
+2. **Prepare AWS resources**
+   - Create an S3 bucket for artifacts (`aws s3 mb s3://cert-checker-artifacts-<acct>-<region>`).
+   - (Optional) create an S3 bucket that stores certificate/chain files the Lambda will read.
+   - Create an IAM role with `AWSLambdaBasicExecutionRole` plus `s3:GetObject` (or Secrets Manager/Twilio permissions as needed).
 
-2. Upload `certificate-checker.zip` to AWS Lambda and set any environment defaults (e.g., `CERTIFICATE_PATH`, notification URLs, or `CONFIG_PATH` pointing to a bundled YAML file).
+3. **Deploy / update the function**
+   - Upload the bundle: `aws s3 cp certificate-checker.zip s3://cert-checker-artifacts-.../`
+   - Create or update the Lambda:
+     ```
+     aws lambda create-function \
+       --function-name CertificateChecker \
+       --runtime python3.12 \
+       --role <role-arn> \
+       --handler lambda_function.lambda_handler \
+       --timeout 30 --memory-size 512 \
+       --environment Variables={CONFIG_PATH=/opt/config.yaml} \
+       --code S3Bucket=cert-checker-artifacts-...,S3Key=certificate-checker.zip
+     ```
+     (Use `aws lambda update-function-code --zip-file fileb://certificate-checker.zip` for subsequent deployments.)
 
-3. Configure an EventBridge rule or any trigger that passes the desired payload so multiple certificates can be monitored with different thresholds.
+4. **Configure defaults & secrets**
+   - Set environment variables such as `CERTIFICATE_PATH`, `HTTP_PUSH_URL`, `TEAMS_WEBHOOK_URL`, or `TWILIO_*`.
+   - If sharing a YAML config, bundle it in the zip and point `CONFIG_PATH` to the file.
+   - Store sensitive data in AWS Secrets Manager and grant the Lambda role `secretsmanager:GetSecretValue`.
+
+5. **Create triggers**
+   - EventBridge schedule that invokes the function every N minutes with the JSON payload described above.
+   - API Gateway, SNS, or direct Lambda test events for ad-hoc checks.
+
+6. **Test the deployment**
+   - Invoke manually: `aws lambda invoke --function-name CertificateChecker --payload file://payload.json out.json`
+   - Verify notification endpoints received the alerts.
+   - Upload sample certs to S3 (if used) and ensure the Lambda role can read them.
+   - For local dry runs, set `SAMPLE_EVENT` and run `python lambda_function.py`.
+
+7. **Monitor & iterate**
+   - Review CloudWatch Logs for each invocation.
+   - Optionally add CloudWatch Alarms on `Errors` metrics or integrate with SNS/Slack.
+   - Adjust EventBridge payloads or thresholds as certificates evolve.
 
 ### References
 
