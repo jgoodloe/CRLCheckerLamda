@@ -1,0 +1,11 @@
+certificate: /opt/certs/example.pem
+certificate_chain:
+  path: /opt/certs/chain.pem
+cert_expiry_warning_hours: 12
+cert_expiry_warning_days: 25
+crl_expiry_warning_hours: 4
+crl_expiry_warning_minutes: 30
+notifications:
+  http_push:
+    url: https://uptime-kuma/api/push/xxxx
+
