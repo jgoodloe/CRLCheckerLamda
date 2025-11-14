@@ -76,7 +76,10 @@ SAMPLE_EVENT="{\"certificate_pem\": \"-----BEGIN ...\"}" python lambda_function.
 2. **Prepare AWS resources**
    - Create an S3 bucket for artifacts (`aws s3 mb s3://cert-checker-artifacts-<acct>-<region>`).
    - (Optional) create an S3 bucket that stores certificate/chain files the Lambda will read.
-   - Create an IAM role with `AWSLambdaBasicExecutionRole` plus `s3:GetObject` (or Secrets Manager/Twilio permissions as needed).
+   - Create an IAM role and attach:
+     - **AWSLambdaBasicExecutionRole** (CloudWatch Logs access shown in console as “AWS managed policy: AWSLambdaBasicExecutionRole”).
+     - **AmazonS3ReadOnlyAccess** or a custom inline policy granting `s3:GetObject` to the certificate bucket.
+     - **SecretsManagerReadWrite** (or a narrower inline policy granting `secretsmanager:GetSecretValue`) if you store credentials in Secrets Manager.
 
 3. **Deploy / update the function**
    - Upload bundle: `aws s3 cp certificate-checker.zip s3://cert-checker-artifacts-.../`
